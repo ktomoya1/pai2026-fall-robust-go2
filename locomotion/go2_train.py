@@ -113,6 +113,12 @@ def get_cfgs():
         "max_push_vel": 4.0,
         # 起き上がりの設定
         "getup": True,
+        # 向きを保つ旋回の指示をするか
+        "heading_command": True,
+        # 向きのずれに対する比例定数
+        "heading_kp": 3.0,
+        # 旋回の指示の上限（rad/s）
+        "max_heading_ang_vel": 2.0,
     }
     obs_cfg = {
         "obs_scales": {
@@ -127,6 +133,8 @@ def get_cfgs():
         "base_height_target": 0.3,
         "feet_height_target": 0.075,
         "reward_scales": {
+            "tracking_lin_vel": 1.0,
+            "tracking_ang_vel": 0.2,
             "base_height": -50.0,
             "action_rate": -0.005,
             "similar_to_default": -0.1,
@@ -135,7 +143,7 @@ def get_cfgs():
     }
     command_cfg = {
         "num_commands": 3,
-        "lin_vel_x_range": [0, 0],
+        "lin_vel_x_range": [0.0, 1.5],
         "lin_vel_y_range": [0, 0],
         "ang_vel_range": [0, 0],
     }

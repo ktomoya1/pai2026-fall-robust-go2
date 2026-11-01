@@ -108,6 +108,7 @@ class Go2Env:
         self.reset_buf = torch.ones((self.num_envs,), dtype=gs.tc_bool, device=gs.device)
         self.episode_length_buf = torch.empty((self.num_envs,), dtype=gs.tc_int, device=gs.device)
         self.commands = torch.empty((self.num_envs, self.num_commands), dtype=gs.tc_float, device=gs.device)
+        self.target_yaw = torch.zeros((self.num_envs,), dtype=gs.tc_float, device=gs.device) # 目標の向き
         self.commands_scale = torch.tensor(
             [self.obs_scales["lin_vel"], self.obs_scales["lin_vel"], self.obs_scales["ang_vel"]],
             device=gs.device,
@@ -186,6 +187,7 @@ class Go2Env:
 
         # compute reward
         self.rew_buf.zero_()
+
         for name, reward_func in self.reward_functions.items():
             rew = reward_func() * self.reward_scales[name]
             self.rew_buf += rew
@@ -195,6 +197,19 @@ class Go2Env:
 
         # 一定間隔で犬を押す
         self._push_robots(self.episode_length_buf % int(self.env_cfg["push_interval_s"] / self.dt) == 0)
+
+        # 向きのずれに応じて元の向きに戻る方向に回れと指示する
+        if self.env_cfg.get("heading_command", False):
+            # 現在の向き（度）をラジアンに直す
+            yaw = self.base_euler[:, 2] * math.pi / 180
+            # 向きのずれを計算する
+            yaw_error = self.target_yaw - yaw
+            # ずれを-π~πに収める（近いほうの回り方にするため）
+            yaw_error = (yaw_error + math.pi) % (2 * math.pi) - math.pi
+            # 回る速さの命令を作る
+            turn_cmd = torch.clip(self.env_cfg["heading_kp"] * yaw_error, -self.env_cfg["max_heading_ang_vel"], self.env_cfg["max_heading_ang_vel"],)
+            # commandsの３つ目（回る速さ）に入れる
+            self.commands[:, 2] = turn_cmd
 
         # check termination and reset
         self.reset_buf = self.episode_length_buf > self.max_episode_length
