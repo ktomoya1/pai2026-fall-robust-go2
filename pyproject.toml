@@ -6,6 +6,7 @@ dependencies = [
     "genesis-world>=1.4.5",
     "rsl-rl-lib>=5.0.0",
     "tensorboard>=2.21.0",
+    "transformers>=4.51",
 ]
 
 # エディタの補完・診断（basedpyright）。型の検査は切る。Genesis は gs.cpu や gs.device を

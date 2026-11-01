@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" width="900" height="430" font-family="Noto Sans CJK JP, sans-serif">
+  <rect width="900" height="430" fill="#ffffff"/>
+  <defs>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#D85A30"/></marker>
+    <marker id="k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222222"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E24B4A"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1D9E75"/></marker>
+  </defs>
+  <text x="30" y="36" font-size="20" fill="#222">目標 170°、今 −170° のとき（犬を上から見た図）</text>
+  <circle cx="230" cy="230" r="140" fill="none" stroke="#bbbbbb" stroke-width="2"/>
+  <line x1="230" y1="230" x2="390" y2="230" stroke="#bbbbbb" stroke-dasharray="5 5"/>
+  <text x="394" y="235" font-size="15" fill="#555">0°（最初の向き）</text>
+  <text x="40" y="235" font-size="15" fill="#555">±180°</text>
+  <!-- 目標 170° -->
+  <line x1="230" y1="230" x2="99.1" y2="207.0" stroke="#D85A30" stroke-width="4" marker-end="url(#o)"/>
+  <!-- 今 -170° -->
+  <line x1="230" y1="230" x2="99.1" y2="253.0" stroke="#222222" stroke-width="4" marker-end="url(#k)"/>
+  <!-- そのまま引いたずれ 340°（今 -170° から反時計回りに340°、外側） -->
+  <path d="M 72.4 257.8 A 160 160 0 1 0 72.4 202.2" fill="none" stroke="#E24B4A" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#r)"/>
+  <!-- 収めたずれ -20°（今 -170° から時計回りに20°、内側） -->
+  <path d="M 131.5 247.4 A 100 100 0 0 1 131.5 212.6" fill="none" stroke="#1D9E75" stroke-width="5" marker-end="url(#g)"/>
+  <text x="470" y="90" font-size="17" fill="#D85A30">オレンジ ＝ 目標の向き（170°）</text>
+  <text x="470" y="118" font-size="17" fill="#222">黒 ＝ 今の向き（−170°）</text>
+  <text x="470" y="146" font-size="17" fill="#E24B4A">赤い点線 ＝ そのまま引いたずれ</text>
+  <text x="490" y="170" font-size="17" fill="#E24B4A">170 − (−170) ＝ 340°（左に大回り）</text>
+  <text x="470" y="204" font-size="17" fill="#1D9E75">緑 ＝ −180〜180° に収めたずれ</text>
+  <text x="490" y="228" font-size="17" fill="#1D9E75">−20°（右に少し回るだけ）</text>
+  <rect x="470" y="262" width="400" height="140" rx="10" fill="#F4F4F1"/>
+  <text x="488" y="292" font-size="16" fill="#222">ずれ ＝ (ずれ ＋ 180) ％ 360 − 180</text>
+  <text x="488" y="322" font-size="16" fill="#444">① 340 ＋ 180 ＝ 520</text>
+  <text x="488" y="348" font-size="16" fill="#444">② 520 ％ 360 ＝ 160（360で割った余り）</text>
+  <text x="488" y="374" font-size="16" fill="#1D9E75">③ 160 − 180 ＝ −20</text>
+</svg>

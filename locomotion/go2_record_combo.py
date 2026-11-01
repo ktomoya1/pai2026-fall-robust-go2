@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--pushes", default="3:90:2.0,7:0:4.0", help="押す時刻（秒）:向き（度、0=前へ 90=左へ）:速さ（m/s）をカンマ区切り")
     parser.add_argument("--seconds", type=float, default=14.0)
     parser.add_argument("--out", default="videos/combo.mp4")
+    parser.add_argument("--speed", type=float, default=None, help="前に進む速さの命令（m/s）を固定する。未指定なら学習時の設定")
     args = parser.parse_args()
 
     gs.init(backend=gs.cpu, logging_level="warning")
@@ -52,6 +53,8 @@ def main():
     env_cfg["termination_if_roll_greater_than"] = 180
     env_cfg["termination_if_pitch_greater_than"] = 180
     env_cfg["episode_length_s"] = max(env_cfg["episode_length_s"], args.seconds + 1)
+    if args.speed is not None:
+        command_cfg["lin_vel_x_range"] = [args.speed, args.speed]
 
     cams = []
     original_build = gs.Scene.build
