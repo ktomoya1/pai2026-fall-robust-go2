@@ -100,9 +100,10 @@ class Locator:
 
         # 1. 質問文を作る
         prompt = (
-            f"Locate the {color_name} cylinder in the image."
-            f" If there is no {color_name} cylinder, answer none."
-            f' Output its bbox coordinates in JSON format like [{{"bbox_2d": [x1, y1, x2, y2], "label": "{color_name} cylinder"}}].'
+            f"The image may be a top-down view, where cylinders look like circles. "
+            f"Locate the {color_name} cylinder in the image. "
+            f"If there is no {color_name} cylinder, answer none. "
+            f'Output its bbox coordinates in JSON format like [{{"bbox_2d": [x1, y1, x2, y2], "label": "{color_name} cylinder"}}].'
         )
         # 2. メッセージを作る
         messages = [
