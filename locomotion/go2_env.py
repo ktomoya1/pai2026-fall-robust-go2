@@ -152,6 +152,17 @@ class Go2Env:
         else:
             torch.where(envs_idx[:, None], commands, self.commands, out=self.commands)
 
+    def _push_robots(self, envs_idx):
+        # 押す向きを、0~2πの範囲で、ロボットごとにランダムに作る
+        angle = 2 * math.pi * torch.rand(self.num_envs, device=gs.device)
+        # 押す力を、0~max_push_velの範囲で、ロボットごとにランダムに作る
+        speed = self.env_cfg["max_push_vel"] * torch.rand(self.num_envs, device=gs.device)
+        # 向きと力からxとyの速さを作る。x = s * cosθ, y = s * sinθ
+        vel = torch.stack([speed * torch.cos(angle), speed * torch.sin(angle)], dim=1)
+        # 実際に押す
+        self.robot.set_dofs_velocity(vel[envs_idx], dofs_idx_local=(0, 1), envs_idx=envs_idx)
+        
+
     def step(self, actions):
         self.actions = torch.clip(actions, -self.env_cfg["clip_actions"], self.env_cfg["clip_actions"])
         exec_actions = self.last_actions if self.simulate_action_latency else self.actions
@@ -182,6 +193,9 @@ class Go2Env:
 
         self._resample_commands(self.episode_length_buf % int(self.env_cfg["resampling_time_s"] / self.dt) == 0)
 
+        # 一定間隔で犬を押す
+        self._push_robots(self.episode_length_buf % int(self.env_cfg["push_interval_s"] / self.dt) == 0)
+
         # check termination and reset
         self.reset_buf = self.episode_length_buf > self.max_episode_length
         self.reset_buf |= torch.abs(self.base_euler[:, 1]) > self.env_cfg["termination_if_pitch_greater_than"]
@@ -208,6 +222,17 @@ class Go2Env:
     def _reset_idx(self, envs_idx=None):
         # reset state
         self.robot.set_qpos(self.init_qpos, envs_idx=envs_idx, zero_velocity=True, skip_forward=True)
+
+        # 起き上がりの学習のときだけ、胴体を前後軸のランダムな角度で転がす
+        if self.env_cfg.get("getup", False):
+            # 転がす角度を作る
+            roll = 2 * math.pi * torch.rand(self.num_envs, device=gs.device) - math.pi
+            # quatの2, 3番目も同じ配列にする
+            zero = torch.zeros(self.num_envs, device=gs.device)
+            # 角度から向き（クウォータニオン）を作る
+            quat = torch.stack([torch.cos(roll/2), torch.sin(roll/2), zero, zero], dim=1)
+            # リセットするロボットの向きを書き換える
+            self.robot.set_quat(quat, envs_idx, zero_velocity=True)
 
         # reset buffers
         if envs_idx is None:
@@ -300,3 +325,8 @@ class Go2Env:
     def _reward_base_height(self):
         # Penalize base height away from target
         return torch.square(self.base_pos[:, 2] - self.reward_cfg["base_height_target"])
+
+    def _reward_upright(self):
+        # 胴体から見た重力のz（立っていれば-1、仰向けなら+1）に-1を掛けて、
+        # 立っていれば+1、仰向けなら-1を返す
+        return self.projected_gravity[:, 2] * -1

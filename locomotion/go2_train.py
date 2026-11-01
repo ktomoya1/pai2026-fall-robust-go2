@@ -97,16 +97,22 @@ def get_cfgs():
         "kp": 20.0,
         "kd": 0.5,
         # termination
-        "termination_if_roll_greater_than": 10,  # degree
-        "termination_if_pitch_greater_than": 10,
+        "termination_if_roll_greater_than": 180,  # degree
+        "termination_if_pitch_greater_than": 180,
         # base pose
-        "base_init_pos": [0.0, 0.0, 0.42],
+        "base_init_pos": [0.0, 0.0, 0.42], # 胴体の中心の位置
         "base_init_quat": [1.0, 0.0, 0.0, 0.0],
         "episode_length_s": 20.0,
         "resampling_time_s": 4.0,
         "action_scale": 0.25,
         "simulate_action_latency": True,
         "clip_actions": 100.0,
+        # 押す間隔（秒）
+        "push_interval_s": 5.0,
+        # 押す速さの上限（m / s）
+        "max_push_vel": 4.0,
+        # 起き上がりの設定
+        "getup": True,
     }
     obs_cfg = {
         "obs_scales": {
@@ -121,17 +127,15 @@ def get_cfgs():
         "base_height_target": 0.3,
         "feet_height_target": 0.075,
         "reward_scales": {
-            "tracking_lin_vel": 1.0,
-            "tracking_ang_vel": 0.2,
-            "lin_vel_z": -1.0,
             "base_height": -50.0,
             "action_rate": -0.005,
             "similar_to_default": -0.1,
+            "upright": 1.0, # 起き上がりは加点
         },
     }
     command_cfg = {
         "num_commands": 3,
-        "lin_vel_x_range": [0.5, 0.5],
+        "lin_vel_x_range": [0, 0],
         "lin_vel_y_range": [0, 0],
         "ang_vel_range": [0, 0],
     }
