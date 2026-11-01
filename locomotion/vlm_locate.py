@@ -52,28 +52,32 @@ def pixel_to_floor(u, v, center, z=FLAG_TOP):
     return x, y
 
 
-# 枠の中で旗の色の画素を拾う条件（RGB、0〜255）
+# 枠の中で旗の色の画素を拾う条件。明るさ（影）に左右されないよう、色相（H、0〜255）と彩度（S）で判定する
+# PIL の HSV: 赤 ≈ 0 / 255、黄 ≈ 40、緑 ≈ 90、青 ≈ 160
 COLOR_MASKS = {
-    "white": lambda r, g, b: (r > 215) & (g > 215) & (b > 215),
-    "red": lambda r, g, b: (r > 170) & (g < 100) & (b < 100),
-    "blue": lambda r, g, b: (b > 170) & (r < 100) & (g < 140),
-    "green": lambda r, g, b: (g > 150) & (r < 100) & (b < 130),
-    "yellow": lambda r, g, b: (r > 190) & (g > 170) & (b < 90),
+    "white": lambda h, s, v: (s < 40) & (v > 170),
+    "red": lambda h, s, v: ((h < 12) | (h > 240)) & (s > 110) & (v > 50),
+    "yellow": lambda h, s, v: (h > 25) & (h < 55) & (s > 110) & (v > 60),
+    "green": lambda h, s, v: (h > 70) & (h < 110) & (s > 100) & (v > 40),
+    "blue": lambda h, s, v: (h > 145) & (h < 180) & (s > 100) & (v > 110),  # 床と空も青っぽい（明るさ 90 以下）ので、明るい画素だけ
 }
 
 
-def refine(image, box, color_name, margin=20):
-    """VLM の枠（少し広げる）の中で、その色の画素の中心を取り直す。画素が無ければ None。"""
-    rgb = np.asarray(image).astype(int)
-    h, w = rgb.shape[:2]
+def refine(image, box, color_name, margin=20, with_bottom=False):
+    """VLM の枠（少し広げる）の中で、その色の画素の中心を取り直す。画素が無ければ None。
+    with_bottom=True なら、色の画素の一番下の行（旗の根元）と画素数も返す。"""
+    hsv = np.asarray(image.convert("HSV")).astype(int)
+    h, w = hsv.shape[:2]
     x1, y1, x2, y2 = box
     x1, y1 = max(int(x1) - margin, 0), max(int(y1) - margin, 0)
     x2, y2 = min(int(x2) + margin, w), min(int(y2) + margin, h)
-    crop = rgb[y1:y2, x1:x2]
+    crop = hsv[y1:y2, x1:x2]
     mask = COLOR_MASKS[color_name](crop[..., 0], crop[..., 1], crop[..., 2])
     vs, us = np.nonzero(mask)
     if len(us) < 20:
         return None
+    if with_bottom:
+        return x1 + us.mean(), y1 + vs.mean(), y1 + vs.max(), len(us)
     return x1 + us.mean(), y1 + vs.mean()
 
 
@@ -84,27 +88,59 @@ class Locator:
         self.processor = AutoProcessor.from_pretrained(MODEL)
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(MODEL, torch_dtype=torch.bfloat16).to("cuda")
 
-    def find(self, image, color_name):
-        """画像から color_name の旗を探し、枠の中心のピクセル (u, v) を返す。見つからなければ None。"""
+    def ask_box(self, image, color_name):
+        """
+        image: カメラで撮った画像。頭のカメラ(1176, 672)、天井カメラ(672, 672)。
+        color_name: 探す旗の色。"white", "red", "blue", "green", "yellow"
+
+        return:
+            box: 長さ4のタプル(x1, y1, x2, y2)(float)
+            answer: 文字列
+        """
+
+        # 1. 質問文を作る
         prompt = (
-            f"This is a top-down view of a floor with several colored cylinders. "
-            f"Locate the {color_name} cylinder. Output its bbox coordinates in JSON format "
-            f'like [{{"bbox_2d": [x1, y1, x2, y2], "label": "{color_name} cylinder"}}].'
+            f"Locate the {color_name} cylinder in the image."
+            f" If there is no {color_name} cylinder, answer none."
+            f' Output its bbox coordinates in JSON format like [{{"bbox_2d": [x1, y1, x2, y2], "label": "{color_name} cylinder"}}].'
         )
-        messages = [{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": prompt}]}]
-        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        # 2. メッセージを作る
+        messages = [
+            {"role": "user", "content": [
+                {"type": "image"},
+                {"type": "text", "text": prompt},
+            ]},
+        ]
+        # 3. メッセージを、モデルが読める１つの文字列に直す
+        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True) # 関数の結果を文字列で受け取る
+        # 4. 文字列と画像をまとめて入力し、GPUに送る、返り値はPytorchの配列
         inputs = self.processor(text=[text], images=[image], return_tensors="pt").to("cuda")
+        # 5. VLMの返答を受け取り、答えの部分だけを文字にする。学習しないのでtorch.no_grad()で勾配の記録をしない
+        # **辞書は辞書をkey=valueでばらす
         with torch.no_grad():
-            out = self.model.generate(**inputs, max_new_tokens=64, do_sample=False)
-        answer = self.processor.batch_decode(out[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)[0]
-        m = re.search(r"\[\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\]", answer)
-        if not m:
+            out = self.model.generate(**inputs, max_new_tokens=64, do_sample=False) # 答えの長さの上限は64, いつも一番確からしいトークンを選ぶ
+        # 6. モデルは数の列を返すのでデコードする
+        # [0]は１件ぶんの答えの文字列が入ったリストを返す
+        answer = self.processor.batch_decode(out[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)[0] # <|im_start|>などの区切りトークンをスキップする
+        # 7. 答えを文章から探す
+        match = re.search(r"\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]", answer)
+        if not match:
             return None, answer
-        x1, y1, x2, y2 = (float(g) for g in m.groups())
-        # VLM が「どの色の旗がどのあたりか」を決め、正確な位置は枠の中の色の画素で取り直す
-        refined = refine(image, (x1, y1, x2, y2), color_name)
+        # 7. 答えから４つの数を取り出す
+        # match.groups()は一致した文字列を順番にタプルで返す
+        box = tuple(float(g) for g in match.groups())
+        return box, answer
+
+    def find(self, image, color_name):
+        """画像から color_name の旗を探し、旗の中心のピクセル (u, v) を返す。見つからなければ None。
+        VLM が「どの色の旗がどのあたりか」を枠で答え（ask_box）、正確な位置は枠の中の色の画素で取り直す。"""
+        box, answer = self.ask_box(image, color_name)
+        if box is None:
+            return None, answer
+        refined = refine(image, box, color_name)
         if refined is not None:
             return refined, answer
+        x1, y1, x2, y2 = box
         return ((x1 + x2) / 2, (y1 + y2) / 2), answer
 
 
