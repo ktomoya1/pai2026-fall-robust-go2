@@ -3,7 +3,13 @@
 押されても踏ん張り、倒れても自分で起き上がって、巡回を続ける四足歩行ロボット（Unitree Go2）を、シミュレータ Genesis の上で強化学習（PPO）で作った。
 言葉で巡回の順番を指示すると LLM が旗の順番に直し、VLM がカメラの画像から旗を見つけて、犬がそこへ向かう。
 
-動画: https://youtu.be/3WTVy0TF0XM
+動画（1分52秒）: https://youtu.be/3WTVy0TF0XM
+
+## 見どころ
+
+| 押されて倒れても、自分で起き上がる | 走りながら押されても、立て直して走り続ける | 言葉の指示で、旗を順に巡回する |
+|---|---|---|
+| ![強く押されて倒れ、自分で起き上がる](media/fall_and_getup.gif) | ![走りながら押され、起き上がってまた走り出す](media/run_push.gif) | ![「緑→黄→スタート」の順に巡回し、途中で押されても続ける](media/llm_vlm_patrol.gif) |
 
 ## できること
 
@@ -18,8 +24,8 @@
 
 ## 自分で書いた部分と、AI に書いてもらった部分
 
-- **自分で書いた**（AI のヒントあり。一部は答えを見せてもらった）: `locomotion/go2_env.py` の押す処理（`_push_robots`）、転がった姿勢からのリセット、`_reward_upright`、向きの命令（`target_yaw`）と、`locomotion/go2_train.py` の学習の設定。[VLM の入力部分も追記予定]
-- **AI（Claude）に書いてもらった**: LLM・VLM の連携（`llm_route.py`、`vlm_locate.py`）、録画（`go2_record*.py`）、評価（`go2_push_eval.py`）、動画の組み立て（`make_video.py`）
+- **自分で書いた**（AI のヒントあり。一部は答えを見せてもらった）: `locomotion/go2_env.py` の押す処理（`_push_robots`）、転がった姿勢からのリセット、`_reward_upright`、向きの命令（`target_yaw`）と、`locomotion/go2_train.py` の学習の設定、`locomotion/vlm_locate.py` の VLM に画像と質問を渡して旗の枠を受け取る処理（`ask_box`）
+- **AI（Claude）に書いてもらった**: LLM・VLM の連携（`llm_route.py`、`vlm_locate.py` の `ask_box` 以外）、録画（`go2_record*.py`）、評価（`go2_push_eval.py`）、動画の組み立て（`make_video.py`）
 - **公式サンプルのまま**: `locomotion/go2_env.py`・`go2_train.py`・`go2_eval.py`・`go2_backflip.py`・`backflip/` の元の部分は、[Genesis](https://github.com/Genesis-Embodied-AI/Genesis) v1.4.5 の `examples/locomotion`（Apache-2.0、`locomotion/LICENSE`）
 
 git のコミットも、この分担で分けてある。
