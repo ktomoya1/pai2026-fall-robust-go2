@@ -7,3 +7,11 @@ dependencies = [
     "rsl-rl-lib>=5.0.0",
     "tensorboard>=2.21.0",
 ]
+
+# エディタの補完・診断（basedpyright）。型の検査は切る。Genesis は gs.cpu や gs.device を
+# 実行時に作るので、basic でも誤検知が 35 件出て、本当の誤りが埋もれる。
+# off だと文法の誤りしか出ないので、打ち間違いに効く2つだけ戻す。
+[tool.basedpyright]
+typeCheckingMode = "off"
+reportUndefinedVariable = "error"
+reportMissingImports = "error"
