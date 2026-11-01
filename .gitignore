@@ -3,3 +3,4 @@ __pycache__/
 # 学習のログ・重みと、書き出した動画は大きいので管理しない
 locomotion/logs/
 locomotion/videos/
+report/draft.pdf
